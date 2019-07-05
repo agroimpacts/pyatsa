@@ -1,3 +1,8 @@
+dist
+notebooks
+planet-idl-test/
+cfg
+*.sav
 .ipynb*
 planet-idlatsa-test/stacked*
 planet-idlatsa-test/intermediates*
