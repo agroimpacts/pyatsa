@@ -7,5 +7,23 @@ module = "pyatsa"
 author = "Ryan Avery"
 author-email = "ravery@ucsb.edu"
 home-page = "https://github.com/agroimpacts/pyatsa"
-classifiers = ["License :: OSI Approved :: MIT License"]
-
+classifiers = [
+    "Intended Audience :: Geospatial Data Scientists",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires=[
+    "requests",
+    "docutils",
+    "requests_download",
+    "pytoml",
+    "numpy",
+    "shapely",
+    "rasterio",
+    "geojson",
+    "planet",
+    "scipy",
+    "scikit-image"
+]
+requires-python="3"
+description-file="README.md"
