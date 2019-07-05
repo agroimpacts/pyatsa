@@ -1,6 +1,6 @@
 dist
 notebooks
-planet-idl-test/
+planet-idlatsa-test/
 cfg
 *.sav
 .ipynb*
