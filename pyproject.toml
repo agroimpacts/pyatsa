@@ -1,0 +1,11 @@
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
+
+[tool.flit.metadata]
+module = "pyatsa"
+author = "Ryan Avery"
+author-email = "ravery@ucsb.edu"
+home-page = "https://github.com/agroimpacts/pyatsa"
+classifiers = ["License :: OSI Approved :: MIT License"]
+
