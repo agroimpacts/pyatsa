@@ -11,6 +11,7 @@ dependencies:
   - xarray>=0.12.3
   - dask>=2.1.0
   - ipykernel
+  - flake8
   - pip:
     - flit # used to publish to pypi and install pyatsa locally for development
     - rasterio>=1.0.7
