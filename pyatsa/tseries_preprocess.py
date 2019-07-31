@@ -3,7 +3,6 @@ import rasterio as rio
 import skimage as ski
 from glob import glob
 import os
-from rasterio.plot import reshape_as_raster
 import json
 import xarray as xr
 import rioxarray
@@ -90,7 +89,8 @@ def read_scenes(scenes, chunk_coord, chunk_size, remove_list=[]):
         path)[0:8], "%Y%m%d") for path in scenes]
     return t_series_xarr.assign_coords(time=sorted_dates)
 
-def remove_bad_paths(paths,remove_list=[]):
+
+def remove_bad_paths(paths, remove_list=[]):
     if remove_list:
         for bad in remove_list:
             for path in paths:
@@ -98,6 +98,7 @@ def remove_bad_paths(paths,remove_list=[]):
                     print("Removed: " + bad)
                     paths.remove(path)
     return paths
+
 
 def read_angles(angles, remove_list=[]):
     """
@@ -207,6 +208,7 @@ def get_meta_ids_to_remove(duplicate_list_meta):
         remove_id_list_meta.append(os.path.basename(i[1])[0:15])
     return remove_id_list_meta
 
+
 def read_clean_tseries_as_xarr(input_folder):
     """
     Reads an xarray with all the inputs used by pyatsa
@@ -228,52 +230,54 @@ def read_clean_tseries_as_xarr(input_folder):
     Returns:
         xarray.Dataset
     """
-        # selecting patterns to use for detection
-        udm_pattern = input_folder + "*udm_clip.tif"
-        udm2_pattern = input_folder + "*udm2_clip.tif"
-        sr_pattern = input_folder + "*SR_clip.tif"
-        meta_pattern = input_folder + "*metadata.json"
+    assert input_folder[-1] == '/'
+    # selecting patterns to use for detection
+    udm_pattern = input_folder + "*udm_clip.tif"
+    udm2_pattern = input_folder + "*udm2_clip.tif"
+    sr_pattern = input_folder + "*SR_clip.tif"
+    meta_pattern = input_folder + "*metadata.json"
 
-        all_udms = sort_paths_by_date(udm_pattern)
-        all_udm2s = sort_paths_by_date(udm2_pattern)
-        all_srs = sort_paths_by_date(sr_pattern)
-        all_metas = sort_paths_by_date(meta_pattern)
+    all_udms = sort_paths_by_date(udm_pattern)
+    all_udm2s = sort_paths_by_date(udm2_pattern)
+    all_srs = sort_paths_by_date(sr_pattern)
+    all_metas = sort_paths_by_date(meta_pattern)
 
-        # during download you may not get one to one match between metadata and products
-        # so we only keep scnees that have all products and metadta
-        id_list = list(set(sorted_dates_from_paths(all_udms)).intersection(
-            set(sorted_dates_from_paths(all_udm2s)),
-            set(sorted_dates_from_paths(all_srs)),
-            set(sorted_dates_from_paths(all_metas))))
+    # during download you may not get one to one match between metadata and products
+    # so we only keep scnees that have all products and metadta
+    id_list = list(set(sorted_dates_from_paths(all_udms)).intersection(
+        set(sorted_dates_from_paths(all_udm2s)),
+        set(sorted_dates_from_paths(all_srs)),
+        set(sorted_dates_from_paths(all_metas))))
 
-        good_udms = filter_path_list_by_date(all_udms, id_list)
-        good_udm2s = filter_path_list_by_date(all_udm2s, id_list)
-        good_srs = filter_path_list_by_date(all_srs, id_list)
-        good_metas = filter_path_list_by_date(all_metas, id_list)
+    good_udms = filter_path_list_by_date(all_udms, id_list)
+    good_udm2s = filter_path_list_by_date(all_udm2s, id_list)
+    good_srs = filter_path_list_by_date(all_srs, id_list)
+    good_metas = filter_path_list_by_date(all_metas, id_list)
 
-        # remove cloudy duplicate dates
-        duplicate_list_udm = find_duplicates(good_udms)
-        remove_id_list_cloudy = get_most_cloudy_ids(duplicate_list_udm)
+    # remove cloudy duplicate dates
+    duplicate_list_udm = find_duplicates(good_udms)
+    remove_id_list_cloudy = get_most_cloudy_ids(duplicate_list_udm)
 
-        # remove duplicates in other products and meta, these can be unique to the type of file
-        duplicate_list_meta = find_duplicates(good_metas)
-        remove_id_list_meta = get_meta_ids_to_remove(duplicate_list_meta)
-        duplicate_list_udm2 = find_duplicates(good_udm2s)
-        remove_id_list_udm2 = get_meta_ids_to_remove(duplicate_list_udm2)
-        duplicate_list_sr = find_duplicates(good_srs)
-        remove_id_list_sr = get_meta_ids_to_remove(duplicate_list_sr)
+    # remove duplicates in other products and meta, these can be unique to the type of file
+    duplicate_list_meta = find_duplicates(good_metas)
+    remove_id_list_meta = get_meta_ids_to_remove(duplicate_list_meta)
+    duplicate_list_udm2 = find_duplicates(good_udm2s)
+    remove_id_list_udm2 = get_meta_ids_to_remove(duplicate_list_udm2)
+    duplicate_list_sr = find_duplicates(good_srs)
+    remove_id_list_sr = get_meta_ids_to_remove(duplicate_list_sr)
 
-        remove_id_list_all = list(set(remove_id_list_cloudy).union(
-            set(remove_id_list_meta),
-            set(remove_id_list_sr),
-            set(remove_id_list_udm2)))
+    remove_id_list_all = list(set(remove_id_list_cloudy).union(
+        set(remove_id_list_meta),
+        set(remove_id_list_sr),
+        set(remove_id_list_udm2)))
 
-        # read in the scenes
-        udm = read_scenes(good_udms, 'band', 1, remove_id_list_all)
-        udm2 = read_scenes(good_udm2s, 'band', 8, remove_id_list_all)
-        sr = read_scenes(good_srs, 'band', 4, remove_id_list_all)
-        angles = read_angles(good_metas, remove_id_list_all)
-        x = xr.Dataset({'reflectance': sr,
+    # read in the scenes
+    udm = read_scenes(good_udms, 'band', 1, remove_id_list_all)
+    udm2 = read_scenes(good_udm2s, 'band', 8, remove_id_list_all)
+    sr = read_scenes(good_srs, 'band', 4, remove_id_list_all)
+    sr = sr.transpose('time', 'y', 'x', 'band')
+    angles = read_angles(good_metas, remove_id_list_all)
+    return xr.Dataset({'reflectance': sr,
                     'udm': udm,
                     'udm2': udm2,
                     'angles': angles})

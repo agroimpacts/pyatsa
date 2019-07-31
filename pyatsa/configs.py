@@ -1,11 +1,5 @@
-import numpy as np
-import skimage.io as skio
-
-
 class ATSA_Configs():
-    def __init__(self, image_path, angles_path):
-        self.t_series = skio.imread(image_path)
-        self.angles = np.genfromtxt(angles_path, delimiter=' ')
+    def __init__(self):
         # set the following parameters
         self.dn_max = 10000  # maximum value of DN, e.g. 7-bit data is 127, 8-bit is 255
         self.background = 0  # DN value of background or missing values, such as SLC-off gaps
@@ -14,8 +8,6 @@ class ATSA_Configs():
         # parameters for HOT caculation and cloud detection
         # ------------------------------
         self.n_band = 4     # number of bands of each image
-        # number of images in the time-series
-        self.n_image = self.t_series.shape[2]/self.n_band
         self.blue_b = 0    # band index of blue band, note: MSS does not have blue, use green as blue
         self.green_b = 1   # band index of green band
         self.red_b = 2     # band index of red band
@@ -40,7 +32,3 @@ class ATSA_Configs():
         # threshold to identify shadow (mean-B_shadow*sd), recommend 1-3, smaller values can detect lighter shadows
         self.B_shadow = 1.5
         # ------------------------------
-
-        # we reshape our images that were stacked on the band axis into a 4D array
-        self.t_series = np.reshape(
-            self.t_series, (self.t_series.shape[0], self.t_series.shape[1], self.n_band, int(self.n_image)), order='F')
