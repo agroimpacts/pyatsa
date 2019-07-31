@@ -222,11 +222,9 @@ def compute_hot_series(t_series, rmin, rmax, n_bin=50):
     ------
     ndarray: The values of the HOT index for the image, a 3D array
     """
-    blues = t_series[:, :, 0, :]
-    reds = t_series[:, :, 2, :]
     intercepts_slopes = np.array(
         list(map(lambda x: get_clear_skyline(x, rmin, rmax),
-                 np.moveaxis(t_series, 3, 0)))
+                 t_series))
     )
     # assigns slope and intercept if an image is too cloudy (doesn't have 500 pixels in rmin, rmax range)
     if np.isnan(intercepts_slopes).all():
@@ -245,9 +243,11 @@ def compute_hot_series(t_series, rmin, rmax, n_bin=50):
         return abs(blue*a - red+b)/np.sqrt(1.0+a**2)
     # map uses the first axis as the axis to step along
     # need to use lambda to use multiple args
+    blues = t_series[:, :, :, 0]
+    reds = t_series[:, :, :, 2]
     hot_t_series = np.array(list(map(lambda x, y, z: helper(x, y, z),
-                                     np.moveaxis(blues, 2, 0),
-                                     np.moveaxis(reds, 2, 0),
+                                     blues,
+                                     reds,
                                      intercepts_slopes)))
     return hot_t_series, intercepts_slopes
 
@@ -333,7 +333,7 @@ def apply_upper_thresh(t_series, hot_t_series, upper_thresh_arr,
         hot_potential_cloudy, upper_thresh_arr), 1, initial_kmeans_clouds_binary)
     # add missed clouds
     refined_masks = np.where(np.logical_and(np.greater(hot_potential_clear, upper_thresh_arr), reshape_as_raster(
-        np.greater(t_series[:, :, 3, :], dn_max*.1))), 2, refined_masks)
+        np.greater(t_series[:, :, :, 3], dn_max*.1))), 2, refined_masks)
 
     # global_thresh_arr = np.ones(refined_masks.shape)*global_cloud_thresh doesn't have much impact in intiial tests
 
@@ -353,10 +353,10 @@ def cloud_height_min_max(angles, longest_d, shortest_d):
         angles (numpy array): 1st column is sun elevation, 2nd is azimuth
     """
     angles = angles/180.0*3.1415926
-    h_high = longest_d/(((np.tan(angles[:, 0])*np.sin(angles[:, 1]))
-                         ** 2+(np.tan(angles[:, 0])*np.cos(angles[:, 1]))**2)**0.5)
-    h_low = shortest_d/(((np.tan(angles[:, 0])*np.sin(angles[:, 1]))
-                         ** 2+(np.tan(angles[:, 0])*np.cos(angles[:, 1]))**2)**0.5)
+    h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev'])*np.sin(angles.loc[:, 'azimuth']))
+                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
+    h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev')*np.sin(angles.loc[:, 'azimuth']))
+                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
     return h_high, h_low
 
 
@@ -394,9 +394,9 @@ def shadow_shift_coords(h_ranges, angles):
     end_y1s = []
     for i, heights in enumerate(h_ranges):
         end_x1s.append(
-            int(round(-heights[-1]*np.tan(angles[i, 0])*np.sin(angles[i, 1]))))
+            int(round(-heights[-1]*np.tan(angles.loc[i, 'sun_elev'])*np.sin(angles.loc[i, 'azimuth']))))
         end_y1s.append(
-            int(round(heights[-1]*np.tan(angles[i, 0])*np.cos(angles[i, 1]))))
+            int(round(heights[-1]*np.tan(angles.loc[i, 'sun_elev'])*np.cos(angles.loc[i, 'azimuth']))))
     return list(zip(end_x1s, end_y1s))
 
 
@@ -458,18 +458,18 @@ def make_potential_shadow_masks(shift_coords, cloud_masks):
 
 
 def make_potential_shadow_masks_multi(shift_coords, cloud_masks):
-    args_list = []
+    args_list=[]
 
     for i, coord in enumerate(shift_coords):
         args_list.append((make_rectangular_struct(coord), cloud_masks[i]))
 
-    shadow_masks = list(map_processes(potential_shadow, args_list))
+    shadow_masks=list(map_processes(potential_shadow, args_list))
     return np.stack(shadow_masks, axis=0)
 
 
 def apply_li_threshold_multi(shadow_inds, potential_shadow_masks):
-    args_list = list(zip(shadow_inds, potential_shadow_masks))
-    refined_shadow_masks = list(map_processes(apply_li_threshold, args_list))
+    args_list=list(zip(shadow_inds, potential_shadow_masks))
+    refined_shadow_masks=list(map_processes(apply_li_threshold, args_list))
     return np.stack(refined_shadow_masks, axis=0)
 
 
@@ -486,9 +486,9 @@ def min_cloud_nir(masks, t_series):
     Returns (tuple): the nir band of the scene with the least clouds and the index of this scene in the t series
     """
     assert np.unique(masks[0])[-1] == 2
-    cloud_counts = [(i == 2).sum() for i in masks]
-    min_index = np.argmin(cloud_counts)
-    return t_series[:, :, 3, min_index], min_index  # 3 is NIR
+    cloud_counts=[(i == 2).sum() for i in masks]
+    min_index=np.argmin(cloud_counts)
+    return t_series[min_index, :, :, :, 3], min_index  # 3 is NIR
 
 
 def gain_and_bias(potential_shadow_masks, nir, clearest_land_nir, clearest_index, nir_index):
@@ -504,23 +504,23 @@ def gain_and_bias(potential_shadow_masks, nir, clearest_land_nir, clearest_index
     """
 
     # index 3 is NIR, 1 in the mask is clear land
-    both_clear = (potential_shadow_masks[clearest_index] == 1) & (
+    both_clear=(potential_shadow_masks[clearest_index] == 1) & (
         potential_shadow_masks[nir_index] == 1)
     if both_clear.sum() > 100:
-        clearest = clearest_land_nir[both_clear]
-        nir = nir[both_clear]
-        gain = np.std(clearest)/np.std(nir)
-        bias = np.mean(clearest) - np.mean(nir) * gain
+        clearest=clearest_land_nir[both_clear]
+        nir=nir[both_clear]
+        gain=np.std(clearest)/np.std(nir)
+        bias=np.mean(clearest) - np.mean(nir) * gain
     else:
-        gain = 1
-        bias = 0
+        gain=1
+        bias=0
     return gain, bias
 
 
 def gains_and_biases(potential_shadow_masks, t_series, clear_land_nir, clear_land_index):
-    gains_biases = []
+    gains_biases=[]
     for i in np.arange(t_series.shape[-1]):
-        gain, bias = gain_and_bias(
+        gain, bias=gain_and_bias(
             potential_shadow_masks, t_series[:, :, 3, i], clear_land_nir, clear_land_index, i)
         gains_biases.append((gain, bias))
     return gains_biases
@@ -533,12 +533,12 @@ def shadow_index_land(potential_shadow_masks, t_series, gains_biases):
     Returns (numpy array): shape (count, height, width) of the nir band shadow index
                 where there was previously calculated to be potential shadow
     """
-    shadow_inds = []
+    shadow_inds=[]
     for i in np.arange(t_series.shape[-1]):
         # applies calcualtion only where mask says there is not cloud
         # might need to do this differently for water
         shadow_inds.append(np.where(
-            potential_shadow_masks[i] != 2, t_series[:, :, 3, i]*gains_biases[i][0]+gains_biases[i][1], np.nan))
+            potential_shadow_masks[i] != 2, t_series[i, :, :, 3]*gains_biases[i][0]+gains_biases[i][1], np.nan))
 
     return np.stack(shadow_inds)
 
@@ -560,10 +560,10 @@ def apply_li_threshold(shadow_index, potential_shadow_mask):
     https://www.sciencedirect.com/science/article/pii/003132039390115D?via%3Dihub
     """
 
-    thresh = threshold_li(shadow_index)
+    thresh=threshold_li(shadow_index)
 
-    binary = shadow_index > thresh
+    binary=shadow_index > thresh
 
-    binary = np.where(potential_shadow_mask == 0, binary, 1)
+    binary=np.where(potential_shadow_mask == 0, binary, 1)
 
     return opening(binary)
