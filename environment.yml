@@ -16,4 +16,5 @@ dependencies:
     - flit # used to publish to pypi and install pyatsa locally for development
     - rasterio>=1.0.7
     - porder
+    - rioxarray
 

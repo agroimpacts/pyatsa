@@ -277,7 +277,7 @@ def read_clean_tseries_as_xarr(input_folder):
     sr = read_scenes(good_srs, 'band', 4, remove_id_list_all)
     sr = sr.transpose('time', 'y', 'x', 'band')
     angles = read_angles(good_metas, remove_id_list_all)
-    return xr.Dataset({'reflectance': sr,
+    return {'reflectance': sr,
                     'udm': udm,
                     'udm2': udm2,
-                    'angles': angles})
+                    'angles': angles}

@@ -12,7 +12,10 @@ from skimage.filters import threshold_li
 import skimage.io as skio
 import xarray as xr
 
-
+##import xarray as xr
+## xr.apply_ufunc(np.mean, t_series['reflectance'].sel(band=1), input_core_dims=[['time']], dask='parallelized', output_dtypes=[float])
+##
+##
 def map_processes(func, args_list):
     """
     Set MAX_PROCESSES in preprocess_config.yaml
@@ -35,11 +38,10 @@ def reject_outliers_by_mean(data_red, data_blue, m=3.):
             data_blue[data_red <= np.mean(data_red) + m * np.std(data_red)])
 
 
-def get_histo_labels(img, rmin0, rmax, nbins=50):
+def get_histo_labels(blue, rmin0, rmax, nbins=50):
     """
-    Takes an image of shape [H, W, Channel], gets blue and red bands,
-    and computes histogram for blue values. then it finds the array indices
-    for each bin of the histogram.
+    Takes an blue band and computes histogram for blue values. then it 
+    finds the array indices for each bin of the histogram.
 
     Args:
         img (numpy array): the input image, part of a time series of images
@@ -52,8 +54,6 @@ def get_histo_labels(img, rmin0, rmax, nbins=50):
         which is later passed to compute hot when nanmean is called.
 
     """
-    # make 3D arrays for blue and red bands to compute clear sky lines
-    blue = img[:, :, 0]
     # finding samples, there should be at least 500 values to
     # compute clear sky line
     good_histo_values = np.where((blue < rmax) & (blue > rmin0), blue, 0)
@@ -61,8 +61,8 @@ def get_histo_labels(img, rmin0, rmax, nbins=50):
         # starts binning where we have good data
         rmin = np.min(good_histo_values[good_histo_values != 0])
         # computes the histogram for a single blue image
-        (means, edges, numbers) = stats.binned_statistic(blue.flatten(),
-                                                         blue.flatten(), statistic='mean',
+        (means, edges, numbers) = stats.binned_statistic(np.ravel(blue),
+                                                         np.ravel(blue), statistic='mean',
                                                          bins=50, range=(int(rmin), int(rmax)))
 
         histo_labels_reshaped = np.reshape(
@@ -191,7 +191,7 @@ def get_clear_skyline(img, rmin0, rmax, nbins=50):
         is computed with different edge cases
     """
 
-    histo_labels_reshaped = get_histo_labels(img, rmin0, rmax, nbins)
+    histo_labels_reshaped = get_histo_labels(img[:, :, 0], rmin0, rmax, nbins)
     if np.isnan(histo_labels_reshaped).all():
         return (np.nan, np.nan)
 
@@ -353,10 +353,10 @@ def cloud_height_min_max(angles, longest_d, shortest_d):
         angles (numpy array): 1st column is sun elevation, 2nd is azimuth
     """
     angles = angles/180.0*3.1415926
-    h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev'])*np.sin(angles.loc[:, 'azimuth']))
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
-    h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev')*np.sin(angles.loc[:, 'azimuth']))
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
+    h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
+                         ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
+    h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
+                         ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
     return h_high, h_low
 
 
