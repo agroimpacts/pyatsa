@@ -94,7 +94,7 @@ def get_bin_means(img, histo_labels_reshaped, n=20):
 
     red_means = []
     blue_means = []
-    # removing last element because for some reason there was an extra bin in the python version compared to idl
+    # removing last elemegh =gh =nt because for some reason there was an extra bin in the python version compared to idl
     for i in np.unique(histo_labels_reshaped)[0:-1]:
 
         red_vals = red[histo_labels_reshaped == i]
@@ -353,17 +353,10 @@ def cloud_height_min_max(angles, longest_d, shortest_d):
         angles (numpy array): 1st column is sun elevation, 2nd is azimuth
     """
     angles = angles/180.0*3.1415926
-<<<<<<< HEAD:pyatsa/masking.py
     h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
                          ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
     h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
                          ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
-=======
-    h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev'])*np.sin(angles.loc[:, 'azimuth']))
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
-    h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev')*np.sin(angles.loc[:, 'azimuth']))
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev'])*np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
->>>>>>> 46a1eb5c49cfc117cd5274dc3f5f22272edc58c8:pyatsa/masking.py
     return h_high, h_low
 
 
