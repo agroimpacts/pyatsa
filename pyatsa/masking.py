@@ -332,8 +332,8 @@ def apply_upper_thresh(t_series, hot_t_series, upper_thresh_arr,
     refined_masks = np.where(np.less(
         hot_potential_cloudy, upper_thresh_arr), 1, initial_kmeans_clouds_binary)
     # add missed clouds
-    refined_masks = np.where(np.logical_and(np.greater(hot_potential_clear, upper_thresh_arr), reshape_as_raster(
-        np.greater(t_series[:, :, :, 3], dn_max*.1))), 2, refined_masks)
+    refined_masks = np.where(np.logical_and(np.greater(hot_potential_clear, upper_thresh_arr), 
+        np.greater(t_series[:, :, :, 3], dn_max*.1)), 2, refined_masks)
 
     # global_thresh_arr = np.ones(refined_masks.shape)*global_cloud_thresh doesn't have much impact in intiial tests
 
@@ -353,10 +353,10 @@ def cloud_height_min_max(angles, longest_d, shortest_d):
         angles (numpy array): 1st column is sun elevation, 2nd is azimuth
     """
     angles = angles/180.0*3.1415926
-    h_high = longest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
-    h_low = shortest_d/(((np.tan(angles.loc[:, 'sun_elev']) * np.sin(angles.loc[:, 'azimuth']))\
-                         ** 2+(np.tan(angles.loc[:, 'sun_elev']) * np.cos(angles.loc[:, 'azimuth']))**2)**0.5)
+    h_high = longest_d/(((np.tan(angles[:, 0]) * np.sin(angles[:, 1]))\
+                         ** 2+(np.tan(angles[:, 0]) * np.cos(angles[:, 1]))**2)**0.5)
+    h_low = shortest_d/(((np.tan(angles[:, 0]) * np.sin(angles[:, 1]))\
+                         ** 2+(np.tan(angles[:, 0]) * np.cos(angles[:, 1]))**2)**0.5)
     return h_high, h_low
 
 
@@ -382,7 +382,8 @@ def shadow_shift_coords(h_ranges, angles):
     on the scene geometry with the sun. Used to determine the direction of the shadow.
 
     Args:
-        h_ranges (list of numpy arrays): the ranges of cloud heights for             each scene, same length as time series
+        h_ranges (list of numpy arrays): the ranges of cloud heights for
+            each scene, same length as time series
         angles (numpy array): the sun elevation and azimuth angles.
             column 0 is sun elevation, 1 is azimuth
     Returns:
@@ -394,9 +395,9 @@ def shadow_shift_coords(h_ranges, angles):
     end_y1s = []
     for i, heights in enumerate(h_ranges):
         end_x1s.append(
-            int(round(-heights[-1]*np.tan(angles.loc[i, 'sun_elev'])*np.sin(angles.loc[i, 'azimuth']))))
+            int(round(-heights[-1]*np.tan(angles[i, 0])*np.sin(angles[i, 1]))))
         end_y1s.append(
-            int(round(heights[-1]*np.tan(angles.loc[i, 'sun_elev'])*np.cos(angles.loc[i, 'azimuth']))))
+            int(round(heights[-1]*np.tan(angles[i, 0])*np.cos(angles[i, 1]))))
     return list(zip(end_x1s, end_y1s))
 
 
@@ -488,7 +489,7 @@ def min_cloud_nir(masks, t_series):
     assert np.unique(masks[0])[-1] == 2
     cloud_counts=[(i == 2).sum() for i in masks]
     min_index=np.argmin(cloud_counts)
-    return t_series[min_index, :, :, :, 3], min_index  # 3 is NIR
+    return t_series[min_index, :, :, 3], min_index  # 3 is NIR
 
 
 def gain_and_bias(potential_shadow_masks, nir, clearest_land_nir, clearest_index, nir_index):
@@ -517,16 +518,16 @@ def gain_and_bias(potential_shadow_masks, nir, clearest_land_nir, clearest_index
     return gain, bias
 
 
-def gains_and_biases(potential_shadow_masks, t_series, clear_land_nir, clear_land_index):
+def gains_and_biases(potential_shadow_masks, nirs, clear_land_nir, clear_land_index):
     gains_biases=[]
-    for i in np.arange(t_series.shape[-1]):
+    for i in np.arange(nirs.shape[0]):
         gain, bias=gain_and_bias(
-            potential_shadow_masks, t_series[:, :, 3, i], clear_land_nir, clear_land_index, i)
+            potential_shadow_masks, nirs[i, :, :], clear_land_nir, clear_land_index, i)
         gains_biases.append((gain, bias))
     return gains_biases
 
 
-def shadow_index_land(potential_shadow_masks, t_series, gains_biases):
+def shadow_index_land(potential_shadow_masks, nirs, gains_biases):
     """
     Applies gain and bias to get shadow index from nir for each scene in t series.
 
@@ -534,11 +535,11 @@ def shadow_index_land(potential_shadow_masks, t_series, gains_biases):
                 where there was previously calculated to be potential shadow
     """
     shadow_inds=[]
-    for i in np.arange(t_series.shape[-1]):
+    for i in np.arange(nirs.shape[0]):
         # applies calcualtion only where mask says there is not cloud
         # might need to do this differently for water
         shadow_inds.append(np.where(
-            potential_shadow_masks[i] != 2, t_series[i, :, :, 3]*gains_biases[i][0]+gains_biases[i][1], np.nan))
+            potential_shadow_masks[i] != 2, nirs[i, :, :]*gains_biases[i][0]+gains_biases[i][1], np.nan))
 
     return np.stack(shadow_inds)
 
